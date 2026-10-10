@@ -12,15 +12,26 @@ from fastapi.staticfiles import StaticFiles
 from .agent import SurveillanceAgent
 
 STATIC = Path(__file__).resolve().parent / "static"
+DASHBOARD = Path(__file__).resolve().parent.parent / "dashboard"
 agent = SurveillanceAgent(loiter_seconds=8.0)
 agent.start()
 
-app = FastAPI(title="ATM Surveillance")
+app = FastAPI(title="Agents / Repos")
 app.mount("/static", StaticFiles(directory=str(STATIC)), name="static")
 
 
 @app.get("/")
 def index() -> FileResponse:
+    return FileResponse(DASHBOARD / "index.html")
+
+
+@app.get("/dashboard")
+def dashboard() -> FileResponse:
+    return FileResponse(DASHBOARD / "index.html")
+
+
+@app.get("/atm")
+def atm() -> FileResponse:
     return FileResponse(STATIC / "index.html")
 
 
