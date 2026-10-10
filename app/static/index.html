@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ATM Bay 01 — Live</title>
+  <style>
+    :root {
+      --bg: #0c0d10;
+      --panel: #14161b;
+      --line: #2a2e36;
+      --text: #e8e4dc;
+      --dim: #8b8578;
+      --live: #3dd68c;
+      --hot: #ff4d4d;
+      --warn: #f0b429;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 "IBM Plex Sans", "Segoe UI", sans-serif; }
+    header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 16px 22px; border-bottom: 1px solid var(--line);
+    }
+    header strong { letter-spacing: 0.08em; text-transform: uppercase; font-size: 13px; }
+    .live { color: var(--live); font-weight: 700; }
+    .live::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--live); margin-right: 8px; }
+    main { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; padding: 16px; }
+    @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+    .panel h2 { margin: 0; padding: 12px 14px; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); border-bottom: 1px solid var(--line); }
+    img.feed { display: block; width: 100%; background: #000; min-height: 280px; object-fit: cover; }
+    .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px; }
+    .card { border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+    .card.on { border-color: var(--hot); }
+    .card .k { color: var(--dim); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; }
+    .card .v { font-size: 18px; margin-top: 4px; }
+    ul { list-style: none; margin: 0; padding: 0; max-height: 360px; overflow: auto; }
+    li { padding: 12px 14px; border-bottom: 1px solid var(--line); }
+    li .meta { color: var(--dim); font-size: 12px; }
+    li.high .kind { color: var(--hot); }
+    .empty { padding: 24px; color: var(--dim); }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>Abnormal activity — ATM Bay 01</strong>
+    <div>
+      <a href="/static/release.zip" download="Abnormal-human-Activity-detection-finished.zip" style="color:#e8e4dc;margin-right:16px">Download finished zip</a>
+      <span class="live" id="live">LIVE</span>
+      <span id="meta" style="color:var(--dim);margin-left:12px"></span>
+    </div>
+  </header>
+  <main>
+    <section class="panel">
+      <h2>Camera</h2>
+      <img class="feed" id="feed" alt="Live ATM camera" src="/api/snapshot.jpg" />
+      <div class="cards">
+        <div class="card" id="c-face"><div class="k">Faces / loiter</div><div class="v" id="face">—</div></div>
+        <div class="card" id="c-crowd"><div class="k">Crowd</div><div class="v" id="crowd">—</div></div>
+        <div class="card" id="c-motion"><div class="k">Motion</div><div class="v" id="motion">—</div></div>
+        <div class="card" id="c-tamper"><div class="k">Tamper</div><div class="v" id="tamper">—</div></div>
+      </div>
+    </section>
+    <section class="panel">
+      <h2>Alert queue</h2>
+      <ul id="alerts"><li class="empty">Waiting on first event…</li></ul>
+    </section>
+  </main>
+  <script>
+    const feed = document.getElementById("feed");
+    setInterval(() => { feed.src = "/api/snapshot.jpg?t=" + Date.now(); }, 200);
+    async function tick() {
+      const s = await fetch("/api/status").then(r => r.json());
+      document.getElementById("meta").textContent =
+        (s.camera || "") + " · " + (s.frames || 0) + " frames · " + (s.uptime_s || 0) + "s up";
+      const set = (id, text, on) => {
+        document.getElementById(id).textContent = text;
+        document.getElementById("c-" + id).classList.toggle("on", !!on);
+      };
+      set("face", s.face ? s.face.detail : "—", s.face && s.face.active);
+      set("crowd", s.crowd ? s.crowd.detail : "—", s.crowd && s.crowd.active);
+      set("motion", s.motion ? s.motion.detail : "—", s.motion && s.motion.active);
+      set("tamper", s.tamper ? s.tamper.detail : "—", s.tamper && s.tamper.active);
+      const box = document.getElementById("alerts");
+      if (!s.alerts || !s.alerts.length) return;
+      box.innerHTML = s.alerts.map(a => {
+        const t = new Date(a.ts * 1000).toLocaleTimeString();
+        return `<li class="${a.severity}"><div class="kind">${a.kind}</div>${a.message}<div class="meta">${t}</div></li>`;
+      }).join("");
+    }
+    tick();
+    setInterval(tick, 800);
+  </script>
+</body>
+</html>
